@@ -1596,7 +1596,7 @@ async function updateMemory(messages) {
       method:"POST",
       headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+apiKey },
       body: JSON.stringify({
-        model:"gpt-5-mini", max_completion_tokens:500, temperature:0.3,
+        model:"gpt-5-mini", max_completion_tokens: 1500, temperature:0.3,
         messages:[{ role:"user", content: prompt }]
       })
     });
@@ -1709,7 +1709,7 @@ async function sendMsg() {
       body: JSON.stringify({
         model,
         messages: [{ role:"system", content:sys }, ...history],
-        max_tokens: isMistral ? 4096 : 1500,   // Codestral supporte des réponses plus longues
+        max_completion_tokens: isMistral ? 4096 : 1500,   // Codestral supporte des réponses plus longues
         temperature: isMistral ? 0.2 : 0.65   // température basse pour le code = moins d'erreurs
       })
     });
