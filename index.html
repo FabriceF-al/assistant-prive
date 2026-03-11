@@ -1596,7 +1596,7 @@ async function updateMemory(messages) {
       method:"POST",
       headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+apiKey },
       body: JSON.stringify({
-        model:"gpt-5-mini", max_tokens:500, temperature:0.3,
+        model:"gpt-5-mini", max_completion_tokens:500, temperature:0.3,
         messages:[{ role:"user", content: prompt }]
       })
     });
