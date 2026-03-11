@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Assistant Privé</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ───────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg:     #0d0d0d;
+  --s1:     #171717;
+  --s2:     #212121;
+  --s3:     #2a2a2a;
+  --s4:     #333;
+  /* Borders */
+  --b1:     rgba(255,255,255,.08);
+  --b2:     rgba(255,255,255,.13);
+  /* Accents vifs */
+  --accent:  #10a37f;   /* vert ChatGPT */
+  --accent2: #1dc99a;
+  --blue:    #4a9eff;
+  --purple:  #a78bfa;
+  --danger:  #ef4444;
+  --warn:    #f59e0b;
+  /* Texte */
+  --tx:     #ececec;
+  --tx2:    #8e8ea0;
+  --tx3:    #555;
+  /* Fonts */
+  --fs: 'Sora', sans-serif;
+  --fm: 'JetBrains Mono', monospace;
+  /* Radius */
+  --r:  10px;
+  --r2: 16px;
+}
+
+/* ── RESET ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; overflow:hidden; }
+body {
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--fs);
+  font-size: 14px;
+  height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: var(--fs); cursor:pointer; }
+.hidden { display:none !important; }
+
+/* ── LOGIN ────────────────────────────────────────────────── */
+#login {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.l-box { width: 320px; }
+
+.l-logo {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: var(--tx2);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+.l-logo span { color: var(--accent); }
+
+.l-inp {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  color: var(--tx);
+  font-family: var(--fs);
+  font-size: 14px;
+  padding: 13px 16px;
+  border-radius: var(--r);
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  margin-bottom: 10px;
+}
+.l-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16,163,127,.15); }
+
+.l-btn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-family: var(--fs);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 13px;
+  border-radius: var(--r);
+  transition: background .2s, transform .1s;
+  margin-bottom: 10px;
+}
+.l-btn:hover  { background: var(--accent2); }
+.l-btn:active { transform: scale(.98); }
+
+.l-bio-btn {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  color: var(--tx2);
+  font-family: var(--fs);
+  font-size: 13px;
+  padding: 12px;
+  border-radius: var(--r);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all .2s;
+  margin-bottom: 10px;
+}
+.l-bio-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.l-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--tx3); font-size: 11px; margin: 4px 0 10px;
+}
+.l-divider::before, .l-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--b1);
+}
+.l-switch {
+  display: block; text-align: center;
+  font-size: 12px; color: var(--tx2);
+  background: none; border: none;
+  text-decoration: underline; text-underline-offset: 3px;
+  margin-top: 6px; transition: color .15s;
+}
+.l-switch:hover { color: var(--tx); }
+.l-err { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; text-align:center; }
+.l-ok  { color: var(--accent);  font-size: 12px; margin-top: 8px; display: none; text-align:center; }
+
+/* ── APP SHELL ────────────────────────────────────────────── */
+#app { display: none; height: 100dvh; flex-direction: column; }
+
+/* ── BANNERS ──────────────────────────────────────────────── */
+.banner {
+  padding: 7px 16px;
+  font-size: 12px;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0; flex-wrap: wrap;
+  border-bottom: 1px solid var(--b1);
+}
+.bn-api   { background: rgba(245,158,11,.06); color: var(--warn); }
+.bn-notion{ background: rgba(74,158,255,.06); color: var(--blue); }
+.banner input {
+  background: rgba(0,0,0,.3); border: 1px solid currentColor;
+  color: inherit; font-family: var(--fs); font-size: 11px;
+  padding: 4px 9px; border-radius: 6px; outline: none; opacity: .7; min-width: 0;
+}
+.banner input:focus { opacity: 1; }
+.banner input.wide  { flex: 1; }
+.banner button {
+  background: rgba(255,255,255,.08); border: 1px solid currentColor;
+  color: inherit; font-size: 11px; padding: 4px 10px; border-radius: 6px;
+  white-space: nowrap; opacity: .8; flex-shrink: 0; transition: opacity .15s;
+}
+.banner button:hover { opacity: 1; }
+
+/* ── HEADER MOBILE ────────────────────────────────────────── */
+.header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--b1);
+  background: var(--s1);
+  flex-shrink: 0; min-height: 52px;
+}
+.h-logo {
+  font-size: 15px; font-weight: 700;
+  color: var(--tx); letter-spacing: -.02em; white-space: nowrap; flex-shrink: 0;
+}
+.h-logo span { color: var(--accent); }
+.mob-wrap { flex: 1; min-width: 0; }
+.mob-sel {
+  width: 100%;
+  background: var(--s2); border: 1px solid var(--b2);
+  color: var(--tx); font-family: var(--fs); font-size: 13px;
+  padding: 8px 28px 8px 10px;
+  border-radius: var(--r); outline: none;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238e8ea0'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.hbtns { display: flex; gap: 6px; flex-shrink: 0; }
+.hbtn {
+  background: var(--s2); border: 1px solid var(--b1);
+  color: var(--tx2); font-size: 12px; font-weight: 500;
+  padding: 7px 12px; border-radius: 8px; white-space: nowrap;
+  transition: all .15s;
+}
+.hbtn:hover { background: var(--s3); color: var(--tx); border-color: var(--b2); }
+.hbtn-txt { /* visible desktop, caché mobile via media query */ }
+
+/* ── LAYOUT ───────────────────────────────────────────────── */
+.body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ──────────────────────────────────────────────── */
+.sidebar {
+  width: 240px;
+  background: var(--s1);
+  border-right: 1px solid var(--b1);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow: hidden;
+}
+.sb-top    { flex-shrink: 0; padding-top: 6px; }
+.sb-scroll { flex: 1; overflow-y: auto; padding-bottom: 12px; }
+.sb-scroll::-webkit-scrollbar { width: 3px; }
+.sb-scroll::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+.sb-sec {
+  font-size: 10px; font-weight: 600;
+  color: var(--tx3); letter-spacing: .1em; text-transform: uppercase;
+  padding: 14px 14px 5px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sb-sec-btn {
+  background: none; border: none;
+  color: var(--accent); font-size: 18px; line-height: 1;
+  padding: 0 2px; transition: color .15s;
+}
+.sb-sec-btn:hover { color: var(--accent2); }
+.sb-sep { height: 1px; background: var(--b1); margin: 6px 12px; }
+
+/* Agent buttons */
+.agbtn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  border: none; border-left: 2px solid transparent;
+  background: none; width: 100%; text-align: left;
+  color: var(--tx2); transition: all .15s;
+  border-radius: 0;
+}
+.agbtn:hover  { background: var(--s2); color: var(--tx); }
+.agbtn.on     { background: var(--s2); border-left-color: var(--accent); color: var(--tx); }
+.ag-ico       { font-size: 15px; flex-shrink: 0; }
+.ag-info      { flex: 1; min-width: 0; }
+.ag-name      { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-tag       { font-size: 10px; color: var(--tx3); margin-top: 1px; }
+.ag-mdl       {
+  font-size: 9px; padding: 2px 5px; border-radius: 5px;
+  background: var(--s3); color: var(--tx3); flex-shrink: 0;
+}
+.ag-edit {
+  background: none; border: none;
+  color: var(--tx3); font-size: 12px; padding: 3px 5px;
+  border-radius: 5px; flex-shrink: 0; transition: color .15s;
+}
+.ag-edit:hover { color: var(--accent); }
+
+/* Folders & convs */
+.folder-wrap  { margin-bottom: 2px; }
+.folder-hd {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 14px; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: var(--tx2);
+  user-select: none; transition: color .15s;
+}
+.folder-hd:hover { color: var(--tx); }
+.folder-arrow { font-size: 9px; color: var(--tx3); transition: transform .2s; flex-shrink: 0; }
+.folder-arrow.open { transform: rotate(90deg); }
+.folder-name  { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.folder-convs { display: none; }
+.folder-convs.open { display: block; }
+
+.conv-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px 6px 30px;
+  cursor: pointer; font-size: 12px; color: var(--tx3);
+  border-left: 2px solid transparent; transition: all .12s;
+}
+.conv-item:hover  { background: var(--s2); color: var(--tx2); }
+.conv-item.on     { color: var(--accent); border-left-color: var(--accent); background: rgba(16,163,127,.06); }
+.conv-title       { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-del {
+  opacity: 0; font-size: 13px; color: var(--tx3);
+  background: none; border: none; padding: 0 2px; flex-shrink: 0;
+  transition: opacity .12s;
+}
+.conv-item:hover .conv-del { opacity: 1; }
+.conv-del:hover { color: var(--danger); }
+
+.sb-add-conv {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px 7px 30px;
+  font-size: 12px; color: var(--tx3);
+  background: none; border: none; width: 100%; text-align: left;
+  transition: color .15s;
+}
+.sb-add-conv:hover { color: var(--accent); }
+
+/* ── CHAT ─────────────────────────────────────────────────── */
+.chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+/* Messages list */
+.msgs {
+  flex: 1; overflow-y: auto;
+  padding: 24px 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.msgs::-webkit-scrollbar { width: 4px; }
+.msgs::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+/* Chat breadcrumb */
+.chat-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 24px;
+  border-bottom: 1px solid var(--b1);
+  background: var(--s1);
+  flex-shrink: 0; font-size: 12px; color: var(--tx2);
+}
+.ch-folder { color: var(--accent); font-weight: 600; }
+.ch-sep    { color: var(--tx3); }
+.ch-conv   { color: var(--tx2); }
+.ch-mem    { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--tx3); }
+.mem-dot   { width: 6px; height: 6px; border-radius: 50%; background: var(--tx3); flex-shrink: 0; transition: background .3s; }
+.mem-dot.ok { background: var(--accent); }
+
+/* Welcome screen */
+.welcome {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1; padding: 40px 24px; text-align: center;
+  animation: fadeUp .4s ease;
+}
+.w-ico   { font-size: 2.5rem; margin-bottom: 14px; }
+.w-title { font-size: 22px; font-weight: 700; color: var(--tx); margin-bottom: 8px; letter-spacing: -.02em; }
+.w-sub   { font-size: 13px; color: var(--tx2); line-height: 1.7; max-width: 380px; }
+.w-badges {
+  display: flex; justify-content: center; gap: 6px;
+  margin-top: 16px; flex-wrap: wrap;
+}
+.w-badge {
+  font-size: 11px; padding: 4px 10px; border-radius: 20px;
+  background: var(--s2); border: 1px solid var(--b2); color: var(--tx2);
+}
+.w-badge.g { border-color: var(--accent); color: var(--accent); background: rgba(16,163,127,.08); }
+
+/* Messages – style ChatGPT */
+@keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+.msg {
+  display: flex; gap: 14px;
+  padding: 14px 24px;
+  animation: fadeUp .18s ease;
+  max-width: 820px; width: 100%; margin: 0 auto;
+}
+.msg.user      { flex-direction: row-reverse; justify-content: flex-start; }
+.msg.assistant { }
+
+/* Avatars */
+.av {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0; margin-top: 2px;
+}
+.msg.user .av {
+  background: var(--accent);
+  color: #fff; font-weight: 700; font-size: 13px;
+}
+.msg.assistant .av {
+  background: var(--s3); border: 1px solid var(--b2);
+}
+
+/* Bulles */
+.bub {
+  line-height: 1.75; font-size: 14px; word-break: break-word;
+  max-width: calc(100% - 46px);
+}
+.msg.user .bub {
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  padding: 11px 16px;
+  border-radius: var(--r2) var(--r2) 4px var(--r2);
+}
+.msg.assistant .bub {
+  padding: 2px 0;
+  color: var(--tx);
+}
+.bub p            { margin-bottom: 8px; }
+.bub p:last-child { margin-bottom: 0; }
+.bub ul, .bub ol  { padding-left: 18px; margin: 6px 0; }
+.bub li           { margin-bottom: 4px; }
+.bub strong       { color: var(--tx); font-weight: 600; }
+.bub code         { font-family: var(--fm); background: var(--s3); padding: 2px 6px; border-radius: 5px; font-size: 12px; color: var(--accent2); }
+.bub pre          { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r); padding: 14px 16px; overflow-x: auto; margin: 8px 0; }
+.bub pre code     { background: none; padding: 0; color: var(--tx); font-size: 12.5px; }
+
+/* Pièces jointes dans les bulles */
+.att-preview { margin-bottom: 10px; border-radius: 8px; overflow: hidden; border: 1px solid var(--b2); }
+.att-preview img { max-width: 100%; max-height: 220px; display: block; object-fit: contain; background: var(--bg); }
+.att-pdf-badge {
+  padding: 9px 12px; background: var(--s2);
+  font-size: 12px; color: var(--tx2);
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* Typing indicator */
+.typing { display: flex; gap: 5px; align-items: center; padding: 4px 2px; }
+.typing span {
+  width: 6px; height: 6px; background: var(--tx3); border-radius: 50%;
+  animation: dot 1.4s infinite;
+}
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes dot { 0%,60%,100% { transform:translateY(0); opacity:.3; } 30% { transform:translateY(-5px); opacity:1; } }
+
+/* Enregistrement vocal */
+.rec-ind {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  background: rgba(239,68,68,.1); border: 1px solid var(--danger);
+  color: var(--danger); font-size: 11px; padding: 6px 14px;
+  border-radius: 20px; display: none; align-items: center; gap: 7px;
+  z-index: 10; backdrop-filter: blur(10px); white-space: nowrap;
+}
+.rec-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--danger);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse { 0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,.4); } 50% { box-shadow:0 0 0 7px rgba(239,68,68,0); } }
+
+/* ── INPUT AREA ───────────────────────────────────────────── */
+.input-area {
+  padding: 12px 20px 18px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+/* Barre pièce jointe en attente */
+.att-bar {
+  display: none; align-items: center; gap: 10px;
+  margin-bottom: 8px; padding: 8px 12px;
+  background: var(--s2); border: 1px solid var(--b2);
+  border-radius: 10px; font-size: 12px; color: var(--tx2);
+}
+.att-bar img         { height: 38px; width: 38px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.att-bar-name        { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.att-bar-remove      { background: none; border: none; color: var(--tx3); font-size: 16px; padding: 0; flex-shrink: 0; transition: color .15s; }
+.att-bar-remove:hover{ color: var(--danger); }
+.att-bar-type        { font-size: 10px; color: var(--tx3); padding: 2px 6px; border-radius: 5px; background: var(--s3); flex-shrink: 0; }
+
+/* Zone de saisie principale */
+.input-wrap {
+  max-width: 820px; margin: 0 auto; width: 100%;
+}
+.input-box {
+  display: flex; gap: 8px; align-items: flex-end;
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  border-radius: var(--r2);
+  padding: 10px 12px;
+  transition: border-color .2s, box-shadow .2s;
+  box-shadow: 0 1px 8px rgba(0,0,0,.3);
+}
+.input-box:focus-within {
+  border-color: rgba(16,163,127,.5);
+  box-shadow: 0 0 0 3px rgba(16,163,127,.1);
+}
+#inp {
+  flex: 1; background: none; border: none; color: var(--tx);
+  font-family: var(--fs); font-size: 14px; line-height: 1.6;
+  resize: none; outline: none; max-height: 140px; min-height: 22px;
+}
+#inp::placeholder { color: var(--tx3); }
+.input-btns { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Icône buttons */
+.ibtn {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--b1); background: none;
+  color: var(--tx3); display: flex; align-items: center; justify-content: center;
+  font-size: 15px; transition: all .15s; flex-shrink: 0;
+}
+.ibtn:hover { background: var(--s3); color: var(--tx2); border-color: var(--b2); }
+.ibtn.mic.rec {
+  border-color: var(--danger); color: var(--danger);
+  background: rgba(239,68,68,.1); animation: pulse 1s infinite; border-radius: 50%;
+}
+.ibtn.send {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; font-size: 16px; font-weight: 700; border-radius: 10px;
+  width: 36px; height: 36px;
+}
+.ibtn.send:hover    { background: var(--accent2); }
+.ibtn.send:active   { transform: scale(.94); }
+.ibtn.send:disabled { opacity: .25; cursor: not-allowed; }
+
+.input-hints {
+  display: flex; justify-content: space-between;
+  margin-top: 6px; font-size: 11px; color: var(--tx3);
+  max-width: 820px; margin-left: auto; margin-right: auto; padding: 0 2px;
+}
+.model-hint { transition: color .2s; }
+.model-hint.vision { color: var(--accent); font-weight: 500; }
+
+/* ── MODALS ───────────────────────────────────────────────── */
+.modal-ov {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.7);
+  backdrop-filter: blur(4px);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  border-radius: 16px;
+  padding: 24px;
+  width: 340px; max-width: 92vw;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+  animation: fadeUp .2s ease;
+}
+.modal h3 {
+  font-size: 15px; font-weight: 700; color: var(--tx);
+  margin-bottom: 6px; letter-spacing: -.02em;
+}
+.modal p {
+  color: var(--tx2); font-size: 12.5px; margin-bottom: 16px; line-height: 1.65;
+}
+.modal input, .modal textarea {
+  width: 100%; background: var(--s1);
+  border: 1px solid var(--b2); color: var(--tx);
+  font-family: var(--fs); font-size: 13px;
+  padding: 10px 13px; border-radius: 10px; outline: none;
+  margin-bottom: 10px; transition: border-color .2s;
+}
+.modal input:focus, .modal textarea:focus { border-color: var(--accent); }
+.modal textarea { resize: vertical; min-height: 130px; line-height: 1.6; margin-bottom: 6px; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.mbtn {
+  background: var(--s3); border: 1px solid var(--b2);
+  color: var(--tx2); font-size: 12px; font-weight: 500;
+  padding: 8px 14px; border-radius: 8px; transition: all .15s;
+}
+.mbtn:hover   { background: var(--s4); color: var(--tx); }
+.mbtn.ok      { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mbtn.ok:hover{ background: var(--accent2); }
+.mbtn.danger  { border-color: rgba(239,68,68,.4); color: var(--danger); background: none; }
+.mbtn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+.model-preview { font-size: 11px; color: var(--tx3); min-height: 16px; margin-bottom: 4px; }
+
+/* ── NOTIFICATION ─────────────────────────────────────────── */
+.notif {
+  position: fixed; bottom: 22px; right: 22px;
+  background: var(--s2); border: 1px solid var(--b2);
+  border-radius: 12px; padding: 12px 16px;
+  font-size: 12px; color: var(--tx);
+  z-index: 300; max-width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  animation: fadeUp .25s ease;
+}
+
+/* ── RESPONSIVE ───────────────────────────────────────────── */
+@media(min-width:641px) {
+  .mob-wrap  { display: none; }
+  .sidebar   { display: flex; }
+  .hbtn-mob  { display: none; }
+}
+
+@media(max-width:640px) {
+  /* Sidebar cachée, remplacée par le select */
+  .sidebar      { display: none; }
+
+  /* Header mobile : logo + select pleine largeur, boutons icônes */
+  .header       { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; min-height: 48px; }
+  .h-logo       { font-size: 13px; }
+  .mob-wrap     { flex: 1; min-width: 0; }
+  .hbtns        { gap: 4px; flex-shrink: 0; }
+  .hbtn         { padding: 6px 8px; font-size: 11px; }
+  /* Masquer les labels texte sur mobile, garder juste les icônes */
+  .hbtn-txt     { display: none; }
+
+  /* Bandeaux : chaque bandeau passe en colonne compacte */
+  .banner {
+    padding: 6px 12px;
+    font-size: 11px;
+    gap: 5px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .banner-row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .banner input {
+    flex: 1;
+    font-size: 11px;
+    padding: 5px 8px;
+    min-width: 0;
+  }
+  .banner button {
+    padding: 5px 10px;
+    font-size: 11px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .banner a {
+    font-size: 10px;
+  }
+
+  /* Chat */
+  .msgs         { padding: 12px 0; }
+  .msg          { padding: 10px 12px; }
+  .chat-header  { padding: 7px 12px; font-size: 11px; }
+  .ch-mem       { font-size: 10px; }
+
+  /* Input area */
+  .input-area   { padding: 6px 10px 12px; }
+  .input-box    { border-radius: 14px; padding: 8px 10px; }
+  #inp          { font-size: 14px; }
+  .input-hints  { font-size: 10px; padding: 0 1px; }
+  .ibtn         { width: 32px; height: 32px; font-size: 14px; }
+  .ibtn.send    { width: 34px; height: 34px; }
+
+  /* Welcome screen */
+  .welcome      { padding: 24px 16px; }
+  .w-title      { font-size: 18px; }
+  .w-sub        { font-size: 12px; }
+  .w-badges     { gap: 5px; }
+  .w-badge      { font-size: 10px; padding: 3px 8px; }
+
+  /* Notification */
+  .notif        { bottom: 14px; right: 12px; left: 12px; max-width: none; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════ -->
+<div id="login">
+  <div class="l-box">
+    <div class="l-logo">Assistant <span>Privé</span></div>
+
+    <button class="l-bio-btn hidden" id="bio-btn" onclick="doBiometric()">
+      <span id="bio-icon">✦</span>
+      <span id="bio-label">Se connecter avec Face ID</span>
+    </button>
+    <div class="l-divider hidden" id="l-divider">ou</div>
+
+    <div id="pwd-wrap">
+      <input type="password" class="l-inp" id="pwd" placeholder="Mot de passe" autofocus>
+      <button class="l-btn" onclick="doLogin()">Accéder</button>
+    </div>
+
+    <button class="l-switch hidden" id="switch-btn" onclick="toggleLoginMode()"></button>
+    <div class="l-err" id="lerr"></div>
+    <div class="l-ok" id="lok"></div>
+  </div>
+</div>
+
+<!-- ══ APP ════════════════════════════════════════════════ -->
+<div id="app">
+
+  <div class="banner bn-api hidden" id="bn-api">
+    <div class="banner-row">
+      <span>⚠ Clé API OpenAI requise</span>
+    </div>
+    <div class="banner-row">
+      <input type="password" class="wide" id="api-inp" placeholder="sk-...">
+      <button onclick="saveApi()">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="banner bn-notion hidden" id="bn-notion">
+    <div class="banner-row">
+      <span>💾 Notion (mémoire longue)</span>
+    </div>
+    <div class="banner-row">
+      <input type="text" style="flex:1.5" id="notion-key-inp" placeholder="secret_XXXXXXXXXX">
+      <input type="text" style="flex:1" id="notion-db-inp" placeholder="ID base Notion">
+      <button onclick="saveNotion()">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="banner hidden" id="bn-mistral" style="background:rgba(255,100,50,.06);color:#ff8c5a;border-bottom:1px solid rgba(255,100,50,.15)">
+    <div class="banner-row">
+      <span>🔥 Clé API Mistral (agent Codeur)</span>
+      <a href="https://console.mistral.ai/api-keys/" target="_blank" style="font-size:10px;color:inherit;opacity:.7;text-decoration:underline;white-space:nowrap;margin-left:auto">Obtenir →</a>
+    </div>
+    <div class="banner-row">
+      <input type="password" class="wide" id="mistral-inp" placeholder="Colle ta clé Mistral ici…">
+      <button onclick="saveMistral()">Enregistrer</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <div class="h-logo">Assistant <span>Privé</span></div>
+    <div class="mob-wrap">
+      <select class="mob-sel" id="mob-sel" onchange="selAgent(+this.value)"></select>
+    </div>
+    <div class="hbtns">
+      <button class="hbtn" onclick="openModal('modal-folder')"><span class="hbtn-txt">+ </span>📁</button>
+      <button class="hbtn" onclick="newConvInCurrent()"><span class="hbtn-txt">+ </span>💬</button>
+      <button class="hbtn" onclick="doLogout()">✕</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sb-top">
+        <div class="sb-sec"><span>Agents</span></div>
+        <div id="sb-builtin"></div>
+        <div class="sb-sep"></div>
+        <div class="sb-sec">
+          <span>Mes agents</span>
+          <button class="sb-sec-btn" onclick="openNewAgent()" title="Créer un agent">＋</button>
+        </div>
+        <div id="sb-custom"></div>
+        <div class="sb-sep"></div>
+        <div class="sb-sec"><span>Dossiers</span></div>
+      </div>
+      <div class="sb-scroll">
+        <div id="sb-folders"></div>
+        <button class="sb-add-conv" onclick="openModal('modal-folder')">＋ Nouveau dossier</button>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="chat">
+      <div class="rec-ind" id="rec-ind">
+        <span class="rec-dot"></span>Enregistrement… Relâche pour transcrire
+      </div>
+
+      <div class="chat-header">
+        <span class="ch-folder" id="ch-folder">—</span>
+        <span class="ch-sep">›</span>
+        <span class="ch-conv" id="ch-conv">Sélectionne une discussion</span>
+        <div class="ch-mem">
+          <div class="mem-dot" id="mem-dot"></div>
+          <span id="mem-lbl">Mémoire locale</span>
+        </div>
+      </div>
+
+      <div class="msgs" id="msgs"></div>
+
+      <div class="input-area">
+      <div class="input-wrap">
+        <div class="att-bar" id="att-bar">
+          <img id="att-thumb" src="" alt="" style="display:none">
+          <span id="att-type" class="att-bar-type">PDF</span>
+          <span class="att-bar-name" id="att-name">—</span>
+          <button class="att-bar-remove" onclick="removeAtt()">×</button>
+        </div>
+        <div class="input-box">
+          <textarea id="inp" rows="1" placeholder="Pose ta question…"
+            onkeydown="onKey(event)" oninput="autoH(this)"></textarea>
+          <div class="input-btns">
+            <button class="ibtn" onclick="document.getElementById('file-inp').click()" title="Joindre un fichier">📎</button>
+            <input type="file" id="file-inp" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" style="display:none" onchange="onFile(event)">
+            <button class="ibtn mic" id="mic-btn"
+              onmousedown="startRec(event)" onmouseup="stopRec(event)"
+              ontouchstart="startRec(event)" ontouchend="stopRec(event)"
+              title="Maintiens pour dicter">🎙</button>
+            <button class="ibtn send" id="send-btn" onclick="sendMsg()">↑</button>
+          </div>
+        </div>
+        <div class="input-hints">
+          <span>Entrée envoyer · Maj+Entrée saut de ligne</span>
+          <span class="model-hint" id="model-hint">—</span>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALS ═════════════════════════════════════════════ -->
+
+<div class="modal-ov" id="modal-folder">
+  <div class="modal">
+    <h3>Nouveau dossier</h3>
+    <p>Donne un nom à ce dossier (ex : Copropriété Dupont, Dossier Martin…)</p>
+    <input type="text" id="folder-name-inp" placeholder="Nom du dossier" maxlength="50">
+    <div class="modal-btns">
+      <button class="mbtn" onclick="closeAllModals()">Annuler</button>
+      <button class="mbtn ok" onclick="confirmNewFolder()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-conv">
+  <div class="modal">
+    <h3>Nouvelle discussion</h3>
+    <p>Donne un titre à cette discussion.</p>
+    <input type="text" id="conv-name-inp" placeholder="Titre de la discussion" maxlength="60">
+    <div class="modal-btns">
+      <button class="mbtn" onclick="closeAllModals()">Annuler</button>
+      <button class="mbtn ok" onclick="confirmNewConv()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modal-agent">
+  <div class="modal" style="width:360px;max-width:94vw">
+    <h3 id="modal-agent-title">Nouvel agent</h3>
+    <p>Définis ton expert. Le modèle GPT est choisi automatiquement selon la complexité du prompt.</p>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="agent-icon-inp" placeholder="🌱" maxlength="2" style="width:52px;text-align:center;font-size:18px">
+      <input type="text" id="agent-name-inp" placeholder="Nom (ex : Jardinage)" maxlength="40" style="flex:1">
+    </div>
+    <textarea id="agent-prompt-inp" placeholder="Colle ton prompt ici…" oninput="previewModel()"></textarea>
+    <div class="model-preview" id="model-preview"></div>
+    <div class="modal-btns">
+      <button class="mbtn danger hidden" id="agent-del-btn" onclick="deleteCustomAgent()">Supprimer</button>
+      <button class="mbtn" onclick="closeAllModals()">Annuler</button>
+      <button class="mbtn ok" onclick="saveCustomAgent()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal édition prompt built-in -->
+<div class="modal-ov" id="modal-prompt">
+  <div class="modal" style="width:560px;max-width:96vw">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span id="prompt-modal-icon" style="font-size:20px"></span>
+      <h3 id="prompt-modal-title" style="margin:0"></h3>
+      <span id="prompt-modal-model" style="font-size:10px;padding:2px 7px;border-radius:5px;background:var(--s3);color:var(--tx3);margin-left:auto;flex-shrink:0"></span>
+    </div>
+    <p style="margin-bottom:10px">Modifie le prompt de cet agent. Les changements s'appliquent immédiatement aux nouvelles questions — l'historique existant n'est pas affecté.</p>
+    <textarea id="prompt-edit-area"
+      style="width:100%;background:var(--s1);border:1px solid var(--b2);color:var(--tx);
+             font-family:var(--fs);font-size:12.5px;padding:12px 14px;border-radius:10px;
+             outline:none;resize:vertical;min-height:320px;max-height:60vh;line-height:1.65;
+             margin-bottom:6px;transition:border-color .2s"
+      oninput="this.style.borderColor='var(--accent)'"></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px;color:var(--tx3)">
+      <span id="prompt-char-count">0 caractères</span>
+      <button class="mbtn" onclick="resetBuiltinPrompt()" style="margin-left:auto;font-size:11px">↺ Réinitialiser</button>
+      <button class="mbtn" onclick="closeAllModals()">Annuler</button>
+      <button class="mbtn ok" onclick="savePromptEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════ -->
+<script>
+// ─── CONFIGURATION ────────────────────────────────────────
+const PASSWORD    = "Quemoi13?";
+const OPENAI_KEY  = "";   // Colle ta clé OpenAI ici ou utilise le bandeau
+const MISTRAL_KEY = "";   // Colle ta clé Mistral ici ou utilise le bandeau
+const VERCEL_URL  = "https://assistant-prive.vercel.app";
+
+// ─── AGENTS BUILT-IN ──────────────────────────────────────
+const BUILTIN = [
+  {
+    id:"immo", icon:"🏢", name:"Immobilier", tag:"Syndic · Gestion locative",
+    model:"gpt-5-mini", web:true,
+    sys:`Tu es un expert en immobilier spécialisé en gestion locative et syndic de copropriété en France, avec 20 ans d'expérience de terrain. Tu as accès au web pour vérifier les textes officiels en vigueur (légifrance.gouv.fr, décrets récents, jurisprudence).
+
+## DOMAINES DE COMPÉTENCE
+Syndic de copropriété : loi du 10 juillet 1965, décret du 17 mars 1967, loi ALUR (loi n°2014-366), loi ELAN (loi n°2018-1021). Assemblées générales : rédaction des résolutions, majorités articles 24 / 25 / 25-1 / 26 / 26-1, délais de convocation (21 jours), ordre du jour, procès-verbaux, contestation (art. 42). Comptabilité syndic : plan comptable copropriétés (décret et arrêté du 14 mars 2005), comptes 450 (copropriétaires), 701/702 (charges), 105/106 (fonds), 120/129 (résultat), budget prévisionnel, appels de fonds, régularisations, fonds travaux ALUR (5% min).
+Gestion locative : loi du 6 juillet 1989, baux d'habitation (nu et meublé), baux commerciaux (loi du 18 juin 2014 dite Pinel), états des lieux, dépôt de garantie, IRL, congés (délais et formes), procédure d'expulsion, commandement de payer, impayés, assurance loyers impayés.
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Tu ne cites JAMAIS un article de loi sans être certain de son contenu exact. Si tu as un doute sur la numérotation précise d'un article, tu l'indiques clairement : "Article X environ — à vérifier dans le texte officiel".
+2. Tu ne cites JAMAIS un montant, un délai, un taux ou un seuil légal sans préciser s'il est susceptible d'avoir été mis à jour (ex : plafonds de ressources, barèmes IRL, seuils de travaux urgents).
+3. Quand tu n'es pas certain d'une information, tu le dis EXPLICITEMENT : "Je ne suis pas certain de ce point — consulte un juriste ou légifrance.fr pour confirmer."
+4. Tu ne confonds JAMAIS les régimes : nu/meublé, résidence principale/secondaire, loi 65/loi 89, syndic bénévole/professionnel.
+5. Si la question porte sur un cas particulier (clause spéciale dans un règlement de copropriété, bail atypique), tu demandes les éléments du dossier avant de répondre plutôt que d'inventer une réponse générique.
+6. Tu termines chaque réponse importante par : "⚠ Ces éléments sont donnés à titre indicatif. Pour tout acte juridique, consulte un professionnel du droit."
+
+## FORMAT DE RÉPONSE
+- Tu structures ta réponse : Analyse → Base légale applicable → Réponse concrète → Points de vigilance.
+- Tu signales en fin de réponse si un élément mériterait une vérification sur légifrance.gouv.fr ou auprès d'un professionnel.
+- Ton ton est professionnel, direct, orienté solutions, sans jargon inutile.`
+  },
+  {
+    id:"compta-syndic", icon:"📊", name:"Compta Syndic", tag:"Bilans · Grands livres",
+    model:"gpt-5-mini", web:true,
+    sys:`Tu es expert-comptable spécialisé en comptabilité de syndic de copropriété et gestion locative en France. Tu as accès au web pour vérifier les textes réglementaires en vigueur (arrêtés, décrets, bofip).
+
+## DOMAINES DE COMPÉTENCE
+Plan comptable des copropriétés (décret et arrêté 14 mars 2005, modifié par l'arrêté du 21 décembre 2021). Comptes : 450 (copropriétaires), 701/702 (produits charges courantes/exceptionnelles), 105 (fonds de réserve), 106 (fonds travaux ALUR), 120/129 (résultat), 512 (banque syndic), 401/411 (fournisseurs/créances). Budget prévisionnel : élaboration, présentation en AG, appels de fonds trimestriels. Régularisation annuelle des charges : répartition, décomptes individuels, soldes débiteurs/créditeurs. Rapprochement bancaire, grand livre, journaux, arrêtés de comptes. Gestion locative comptable : compte propriétaire (450), reversements, quittancement, régularisation charges locatives (loi 89 art. 23).
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Tu ne poses JAMAIS d'écriture comptable sans préciser le compte exact (numéro + libellé) et le sens (débit/crédit). Si tu as un doute sur un numéro de compte précis, tu le signales.
+2. Quand tu analyses un document fourni (bilan, grand livre, relevé), tu travailles UNIQUEMENT sur les chiffres présents dans le document. Tu n'inventes ni ne complètes des données manquantes.
+3. Si un chiffre ou une écriture dans le document te semble anormal, tu le signales clairement avec une explication, sans supposer l'intention.
+4. Tu ne mélanges JAMAIS la comptabilité de syndic (plan comptable copropriétés) avec la comptabilité générale PCG. Tu précises toujours quel référentiel tu appliques.
+5. Si une question dépasse la comptabilité pure (implication fiscale, juridique), tu l'indiques et tu recommandes de consulter un expert-comptable ou un juriste.
+6. Tu termines chaque analyse de document par un récapitulatif : "Points confirmés / Points à vérifier / Anomalies détectées".
+
+## FORMAT DE RÉPONSE
+- Analyse documentaire : tableau Compte | Libellé | Montant | Observation.
+- Questions théoriques : Principe → Écritures → Exemple chiffré si pertinent.
+- Toujours conclure par les points d'attention et les vérifications recommandées.`
+  },
+  {
+    id:"trading", icon:"📈", name:"Trading", tag:"Scalping · Temps réel",
+    model:"gpt-5.4", web:true,
+    sys:`Tu es un trader professionnel expert en scalping et trading court terme, avec accès aux données de marché en temps réel via le web.
+
+## MARCHÉS COUVERTS
+Indices : CAC 40, S&P 500, DAX 40, Nasdaq 100, Dow Jones, FTSE 100. Métaux précieux : Or (XAU/USD), Argent (XAG/USD). Devises : EUR/USD, GBP/USD, USD/JPY. CFD sur matières premières : pétrole (WTI, Brent).
+
+## ANALYSE TECHNIQUE
+Smart Money Concepts : BOS (Break of Structure), CHoCH (Change of Character), zones d'offre/demande (supply/demand), fair value gaps (FVG), liquidités (equal highs/lows, sell-side/buy-side liquidity). Indicateurs classiques : EMA 9/21/50/200, RSI, MACD, volume, ATR pour le sizing. Timeframes : scalping M1/M5/M15, confirmation H1/H4, biais journalier sur Daily.
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Tu ne donnes JAMAIS un prix, un niveau de support/résistance ou un setup sans avoir d'abord fait une recherche web pour obtenir les données actuelles. Tu ne travailles JAMAIS de mémoire sur les prix.
+2. Si la recherche web ne retourne pas de données fiables et récentes, tu le dis clairement : "Je n'ai pas de données de marché fiables à cet instant — vérifie sur TradingView."
+3. Tu ne prédis JAMAIS la direction d'un marché avec certitude. Tu utilises systématiquement des formulations conditionnelles : "Si le prix casse X, le scénario haussier cible Y. Si le prix revient sous Z, scénario invalidé."
+4. Tu rappelles SYSTÉMATIQUEMENT à chaque setup : "Ce setup est une analyse technique, pas un conseil financier. Le trading comporte un risque de perte en capital."
+5. Tu ne donnes JAMAIS de levier ou de taille de position sans connaître le capital et le risque par trade accepté par l'utilisateur.
+6. Tu signales TOUJOURS les événements macro à venir susceptibles d'invalider le setup (NFP, CPI, BCE, Fed, résultats d'entreprises).
+
+## FORMAT D'UN SETUP
+Instrument | Biais (haussier/baissier/neutre) | Entrée | Stop | Cible 1 | Cible 2 | R/R | Invalidation | Événements macro à surveiller.`
+  },
+  {
+    id:"patrimoine", icon:"💼", name:"Patrimoine", tag:"Fiscalité · Transmission",
+    model:"gpt-5-mini", web:true,
+    sys:`Tu es un conseiller en gestion de patrimoine indépendant (CGPI) de haut niveau en France, avec accès au web pour les textes fiscaux et barèmes à jour.
+
+## DOMAINES DE COMPÉTENCE
+Fiscalité des personnes physiques : IR (barèmes, tranches, quotient familial), IFI, plus-values immobilières et mobilières, revenus fonciers, BIC/BNC/BA. Optimisation fiscale légale : LMNP/LMP (régime micro-BIC vs réel, amortissement Censi-Bouvard), déficit foncier (art. 156 CGI), PER (loi PACTE), assurance-vie (fiscalité rachats, abattements 152.500€/bénéficiaire après 8 ans), démembrement (usufruit/nue-propriété, valeurs fiscales), dispositifs Malraux, Monument Historique. Structures : SCI à l'IR/IS, SARL de famille, holding animatrice, pacte Dutreil (art. 787 B CGI, abattement 75%). Transmission : donation simple, donation-partage, abattements légaux (100.000€ parent/enfant tous les 15 ans), succession ab intestat.
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Les barèmes fiscaux (tranches IR, abattements, plafonds) changent chaque année en loi de finances. Tu SYSTÉMATIQUEMENT précises l'année de référence et tu indiques si le chiffre doit être vérifié sur impots.gouv.fr ou dans la dernière loi de finances.
+2. Tu ne calcules JAMAIS un impôt précis sans avoir toutes les données nécessaires (revenus, charges, situation familiale, régime). Si des données manquent, tu les demandes ou tu présentes une fourchette avec les hypothèses clairement indiquées.
+3. Tu ne confonds JAMAIS les régimes (LMNP ≠ LMP, SCI IR ≠ SCI IS, donation ≠ succession). Chaque réponse précise le régime applicable.
+4. Si un dispositif a été modifié récemment (loi de finances, jurisprudence), tu le signales et tu recommandes de vérifier sur bofip.impots.gouv.fr.
+5. Tu termines toujours par : "⚠ Ces éléments sont indicatifs. Tout acte patrimonial significatif doit être validé par un notaire ou un conseiller en gestion de patrimoine agréé (CIF)."
+6. Tu utilises le web pour vérifier les barèmes actuels avant de les citer.
+
+## FORMAT DE RÉPONSE
+Situation analysée → Dispositifs applicables → Chiffrage indicatif (avec hypothèses) → Points de vigilance → Prochaines étapes recommandées.`
+  },
+  {
+    id:"compta-ent", icon:"🧾", name:"Compta Entreprise", tag:"Bilan · IS · TVA",
+    model:"gpt-5-mini", web:true,
+    sys:`Tu es expert-comptable et fiscaliste d'entreprise en France, spécialisé dans les PME et TPE. Tu as accès au web pour vérifier les taux et textes fiscaux en vigueur (CGI, bofip.impots.gouv.fr, dernières lois de finances).
+
+## DOMAINES DE COMPÉTENCE
+Comptabilité générale : PCG 2014 (plan comptable général), bilans, comptes de résultat, annexes, tableaux de flux de trésorerie, amortissements (linéaire, dégressif), provisions. Fiscalité des entreprises : IS (résultat fiscal, réintégrations, déductions, liasse 2065, crédit d'impôt recherche CIR), TVA (régimes réel normal/simplifié, CA3/CA12, autoliquidation intracommunautaire), CFE, CVAE (suppression progressive), taxe sur les salaires. Rémunération dirigeant : arbitrage salaire/dividendes, TNS vs assimilé salarié, charges sociales, optimisation. Analyse financière : SIG (EBE, REX, RN), BFR, trésorerie nette, ratios de rentabilité/liquidité/solvabilité, tableau de bord.
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Tu ne cites JAMAIS un article du CGI, du PCG ou du Code de commerce sans être certain de son contenu. En cas de doute, tu indiques "à vérifier sur légifrance.gouv.fr ou bofip.impots.gouv.fr".
+2. Quand tu analyses un document fourni (bilan, liasse, grand livre), tu travailles UNIQUEMENT sur les données présentes. Tu ne complètes jamais des données manquantes.
+3. Les taux (IS, TVA, cotisations) évoluent chaque année. Tu précises TOUJOURS l'année de référence et tu invites à vérifier les taux actuels.
+4. Tu ne mélanges JAMAIS comptabilité sociale (bulletin de paie) et comptabilité générale. Tu ne te prononces pas sur les aspects juridiques du droit du travail.
+5. Si un point dépasse la comptabilité (restructuration, cession, contentieux fiscal), tu recommandes de consulter un expert-comptable ou un avocat fiscaliste.
+6. Tu termines chaque analyse par : "Points confirmés / Points à vérifier / Anomalies détectées / Recommandations".
+
+## FORMAT DE RÉPONSE
+- Analyse documentaire : Poste | Montant | Variation N-1 | Observation | Risque.
+- Questions théoriques : Principe comptable → Écritures → Impact fiscal → Exemple chiffré.`
+  },
+  {
+    id:"codeur", icon:"⚡", name:"Codeur Expert", tag:"Mistral · Codestral",
+    model:"codestral-latest", web:true,
+    sys:`Tu es un développeur full-stack senior d'élite. Tu codes vite, propre, sans bug. Tu livres du code qui tourne du premier coup.
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Tu ne cites JAMAIS une version de package, framework ou modèle d'IA sans l'avoir vérifiée via le web au préalable. Les versions évoluent en permanence — tu ne travailles jamais de mémoire sur ce point.
+2. Tu ne génères JAMAIS une API ou une fonction qui n'existe pas. Si tu n'es pas certain qu'une méthode existe dans une bibliothèque, tu l'indiques : "À vérifier dans la documentation officielle de X."
+3. Tu ne proposes JAMAIS un package npm/pip déprécié ou abandonné sans le signaler et proposer l'alternative maintenue.
+4. Si tu n'as pas les informations suffisantes pour coder (endpoint inconnu, structure de données non précisée, auth non décrite), tu POSES LES QUESTIONS avant de coder — tu n'inventes jamais.
+5. Tu n'utilises JAMAIS une pratique de sécurité obsolète (MD5 pour les mots de passe, eval(), requêtes SQL non paramétrées, clés API en dur côté front).
+6. Avant de livrer, tu relis mentalement le code pour éliminer : variables non définies, imports manquants, await oublié, null non géré, edge cases évidents.
+
+## PROCESSUS OBLIGATOIRE
+1. REFORMULER : tu reformules la demande en 2 lignes pour confirmer ce que tu vas faire.
+2. PLANIFIER : tu listes les choix techniques (langage, framework, structure) avant de coder.
+3. CODER : code complet, fonctionnel, immédiatement utilisable.
+4. AUDITER : tu relis et signales les points fragiles ou les hypothèses.
+5. LIVRER : tu indiques les commandes d'installation et comment tester.
+
+## STACK ACTUELLE (à vérifier via web avant usage)
+Frontend : React 19, Next.js 15, TypeScript 5.x, Tailwind 4, Vite 6, shadcn/ui, Framer Motion, TanStack Query v5, Zustand. Backend : Node 22 LTS, Bun, Hono, Fastify, tRPC, Drizzle ORM, Prisma, Zod. IA/LLM : OpenAI SDK (GPT-4o, o1, o3), Anthropic SDK (Claude 3.5/3.7), Google AI (Gemini 2.0), Mistral, Vercel AI SDK v4, LangChain.js. Automation : n8n, Supabase Edge Functions, Cloudflare Workers, GitHub Actions. DevOps : Docker, Vercel, Railway, Fly.io, Nginx.
+
+## VIGILANCE SYSTÉMATIQUE
+À chaque livraison tu précises : dépendances à installer | variables d'environnement (.env) | permissions requises | limitations connues | alternatives si problème.
+
+Tu es direct. Pas de blabla. Du code qui marche.`
+  },
+  {
+    id:"general", icon:"💬", name:"Général", tag:"Assistant polyvalent",
+    model:"gpt-5-mini", web:true,
+    sys:`Tu es un assistant intelligent, cultivé et polyvalent.
+
+## RÈGLES ANTI-HALLUCINATION — ABSOLUES
+1. Quand tu n'es pas certain d'un fait, tu le dis explicitement : "Je ne suis pas certain de ce point" ou "À vérifier". Tu ne présentes jamais une incertitude comme une certitude.
+2. Pour les faits récents (actualités, nouvelles lois, nouveaux produits, nouvelles personnes au pouvoir), tu utilises systématiquement le web avant de répondre. Tu ne travailles jamais de mémoire sur des informations datées.
+3. Pour les données chiffrées (prix, statistiques, classements, dates précises), tu précises toujours ta source ou tu invites à vérifier.
+4. Si une question est ambiguë, tu demandes une clarification plutôt que de supposer et répondre à côté.
+5. Tu ne complètes jamais un document ou un texte fourni avec des informations inventées — tu travailles uniquement sur ce qui t'est donné.
+6. Si une question sort de tes capacités réelles (diagnostic médical précis, avis juridique engageant, conseil financier personnalisé), tu le signales et tu orientes vers un professionnel compétent.
+
+## FORMAT
+Tu adaptes ta longueur et ton niveau à la question. Réponses courtes pour les questions simples, structurées pour les sujets complexes. Toujours direct, jamais condescendant.`
+  }
+];
+
+// ─── STATE ────────────────────────────────────────────────
+let customAgents  = [];   // agents créés par l'utilisateur
+let curAgIdx      = 0;    // index global (builtin + custom)
+let data          = {};   // { agentId: { folders:[...] } }
+let curFolderId   = null;
+let curConvId     = null;
+let apiKey        = OPENAI_KEY  || localStorage.getItem("oai_k")     || "";
+let mistralKey    = MISTRAL_KEY || localStorage.getItem("mistral_k")  || "";
+let notionKey     = localStorage.getItem("notion_k")  || "";
+let notionDb      = localStorage.getItem("notion_db") || "";
+let memory        = {};   // { memKey: "résumé" }
+let pendingAtt    = null; // { type, name, b64?, mimeType?, extractedText?, fileType? }
+let busy          = false;
+let mediaRec      = null;
+let audioChunks   = [];
+let editingAgId   = null; // id de l'agent en cours d'édition (null = création)
+let pendingFolder = null; // folderId pour la future conversation
+
+// ─── HELPERS ──────────────────────────────────────────────
+function allAgents() { return [...BUILTIN, ...customAgents]; }
+function curAgent()  { return allAgents()[curAgIdx] || BUILTIN[0]; }
+function agId()      { return curAgent().id; }
+
+function $(id) { return document.getElementById(id); }
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function showEl(id){ const e=$(id); if(e) e.classList.remove("hidden"); }
+function hideEl(id){ const e=$(id); if(e) e.classList.add("hidden"); }
+
+// ─── LOGIN ────────────────────────────────────────────────
+const WEBAUTHN_AVAILABLE = !!window.PublicKeyCredential;
+
+function initLoginScreen() {
+  const enrolled = localStorage.getItem("bio_enrolled") === "1";
+  if (WEBAUTHN_AVAILABLE && enrolled) {
+    showEl("bio-btn"); showEl("l-divider"); showEl("switch-btn");
+    $("switch-btn").textContent = "Utiliser le mot de passe";
+    // Détecte le type de biométrie
+    const ua = navigator.userAgent;
+    if (/iPhone|iPad/.test(ua))      { $("bio-icon").textContent=""; $("bio-label").textContent="Face ID"; }
+    else if (/Macintosh/.test(ua))   { $("bio-icon").textContent="✦"; $("bio-label").textContent="Touch ID"; }
+    else                              { $("bio-icon").textContent="🔑"; $("bio-label").textContent="Biométrie"; }
+    setTimeout(doBiometric, 500);
+  }
+}
+
+function toggleLoginMode() {
+  const bio = $("bio-btn");
+  if (!bio.classList.contains("hidden")) {
+    hideEl("bio-btn");
+    $("switch-btn").textContent = "Utiliser Face ID / Touch ID";
+    $("pwd").focus();
+  } else {
+    showEl("bio-btn");
+    $("switch-btn").textContent = "Utiliser le mot de passe";
+  }
+  $("lerr").style.display = "none";
+}
+
+async function registerBiometric() {
+  if (!WEBAUTHN_AVAILABLE) return;
+  try {
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rp: { name:"Assistant Privé", id: location.hostname || "localhost" },
+      user: { id: new Uint8Array(16), name:"user", displayName:"Utilisateur" },
+      pubKeyCredParams: [{ type:"public-key", alg:-7 },{ type:"public-key", alg:-257 }],
+      authenticatorSelection: { authenticatorAttachment:"platform", userVerification:"required" },
+      timeout: 60000
+    }});
+    const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem("bio_cred_id", credId);
+    localStorage.setItem("bio_enrolled", "1");
+    $("lok").textContent = "✓ Face ID / Touch ID activé pour les prochaines connexions";
+    $("lok").style.display = "block";
+    setTimeout(() => { $("lok").style.display = "none"; }, 3500);
+  } catch(e) { console.log("Register biometric:", e.message); }
+}
+
+async function doBiometric() {
+  if (!WEBAUTHN_AVAILABLE) return;
+  const credIdStr = localStorage.getItem("bio_cred_id");
+  if (!credIdStr) return;
+  try {
+    const credId = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
+    await navigator.credentials.get({ publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rpId: location.hostname || "localhost",
+      allowCredentials: [{ type:"public-key", id:credId }],
+      userVerification: "required",
+      timeout: 60000
+    }});
+    openApp();
+  } catch(e) {
+    if (e.name !== "NotAllowedError") {
+      $("lerr").textContent = "Biométrie échouée — utilise ton mot de passe";
+      $("lerr").style.display = "block";
+    }
+    hideEl("bio-btn");
+    $("pwd").focus();
+  }
+}
+
+function doLogin() {
+  if ($("pwd").value === PASSWORD) {
+    $("lerr").style.display = "none";
+    openApp();
+    if (WEBAUTHN_AVAILABLE && localStorage.getItem("bio_enrolled") !== "1") {
+      setTimeout(() => {
+        if (confirm("Activer Face ID / Touch ID pour les prochaines connexions ?"))
+          registerBiometric();
+      }, 800);
+    }
+  } else {
+    $("lerr").textContent = "Mot de passe incorrect";
+    $("lerr").style.display = "block";
+    $("pwd").value = "";
+    $("pwd").focus();
+  }
+}
+
+function openApp() {
+  $("login").style.display = "none";
+  $("app").style.display   = "flex";
+  init();
+  triggerModelCheck();
+}
+
+function doLogout() {
+  $("login").style.display = "flex";
+  $("app").style.display   = "none";
+  $("pwd").value = "";
+  initLoginScreen();
+}
+
+$("pwd").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+  // Clé API OpenAI
+  if (apiKey) hideEl("bn-api"); else showEl("bn-api");
+  // Clé API Mistral
+  if (mistralKey) hideEl("bn-mistral"); else showEl("bn-mistral");
+  // Notion
+  if (notionKey && notionDb) hideEl("bn-notion"); else showEl("bn-notion");
+  updateMemDot();
+  // Données
+  try { const s = localStorage.getItem("data_v5"); if (s) data = JSON.parse(s); } catch(e) {}
+  try { const s = localStorage.getItem("mem_v2");  if (s) memory = JSON.parse(s); } catch(e) {}
+  try { const s = localStorage.getItem("custom_agents_v1"); if (s) customAgents = JSON.parse(s); } catch(e) {}
+  renderBuiltin();
+  renderCustom();
+  buildMobSel();
+  selAgent(0);
+}
+
+function updateMemDot() {
+  if (notionKey && notionDb) {
+    $("mem-dot").classList.add("ok");
+    $("mem-lbl").textContent = "Notion actif";
+  } else {
+    $("mem-dot").classList.remove("ok");
+    $("mem-lbl").textContent = "Mémoire locale";
+  }
+}
+
+// ─── BANNERS ──────────────────────────────────────────────
+function saveApi() {
+  const v = $("api-inp").value.trim();
+  if (!v.startsWith("sk-")) { alert("La clé doit commencer par sk-"); return; }
+  apiKey = v;
+  localStorage.setItem("oai_k", v);
+  hideEl("bn-api");
+  triggerModelCheck();
+}
+
+function saveNotion() {
+  const k = $("notion-key-inp").value.trim();
+  const d = $("notion-db-inp").value.trim();
+  if (!k.startsWith("secret_") || !d) { alert("Clé Notion invalide ou ID manquant"); return; }
+  notionKey = k; notionDb = d;
+  localStorage.setItem("notion_k", k);
+  localStorage.setItem("notion_db", d);
+  hideEl("bn-notion");
+  updateMemDot();
+}
+
+function saveMistral() {
+  const v = $("mistral-inp").value.trim();
+  if (!v) { alert("Clé Mistral vide."); return; }
+  mistralKey = v;
+  localStorage.setItem("mistral_k", v);
+  hideEl("bn-mistral");
+  triggerModelCheck();
+  showNotif("✓ Clé Mistral enregistrée — agent Codeur Expert prêt");
+}
+function renderBuiltin() {
+  const c = $("sb-builtin");
+  c.innerHTML = "";
+  BUILTIN.forEach((a, i) => {
+    const btn = document.createElement("button");
+    btn.className = "agbtn" + (curAgIdx === i ? " on" : "");
+    btn.dataset.idx = i;
+    btn.onclick = () => selAgent(i);
+    btn.innerHTML = `<span class="ag-ico">${a.icon}</span>
+      <div class="ag-info"><div class="ag-name">${esc(a.name)}</div><div class="ag-tag">${esc(a.tag||"")}</div></div>
+      <span class="ag-mdl">${a.model.replace("gpt-","")}</span>
+      <button class="ag-edit" onclick="event.stopPropagation();openPromptEdit('builtin',${i})" title="Voir / modifier le prompt">✎</button>`;
+    c.appendChild(btn);
+  });
+}
+
+function renderCustom() {
+  const c = $("sb-custom");
+  c.innerHTML = "";
+  if (customAgents.length === 0) {
+    c.innerHTML = `<div style="padding:4px 11px 8px;font-size:10px;color:var(--muted);font-style:italic">Aucun agent — clique ＋</div>`;
+    return;
+  }
+  customAgents.forEach((a, i) => {
+    const globalIdx = BUILTIN.length + i;
+    const btn = document.createElement("button");
+    btn.className = "agbtn" + (curAgIdx === globalIdx ? " on" : "");
+    btn.dataset.idx = globalIdx;
+    btn.onclick = () => selAgent(globalIdx);
+    btn.innerHTML = `<span class="ag-ico">${esc(a.icon||"🤖")}</span>
+      <div class="ag-info"><div class="ag-name">${esc(a.name)}</div><div class="ag-tag">${esc(a.model||"gpt-5-mini")}</div></div>
+      <button class="ag-edit" onclick="event.stopPropagation();openPromptEdit('custom','${esc(a.id)}')" title="Voir / modifier le prompt">✎</button>`;
+    c.appendChild(btn);
+  });
+}
+
+function buildMobSel() {
+  const s = $("mob-sel");
+  s.innerHTML = "";
+  BUILTIN.forEach((a, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = a.icon + " " + a.name;
+    s.appendChild(o);
+  });
+}
+
+// ─── SELECTION AGENT ──────────────────────────────────────
+function selAgent(idx) {
+  const agents = allAgents();
+  if (idx < 0 || idx >= agents.length) idx = 0;
+  curAgIdx = idx;
+  // Mettre à jour highlight sidebar
+  document.querySelectorAll(".agbtn").forEach(b => {
+    b.classList.toggle("on", +b.dataset.idx === idx);
+  });
+  $("mob-sel").value = Math.min(idx, BUILTIN.length - 1);
+  // Initialiser data agent si besoin
+  const id = agents[idx].id;
+  if (!data[id]) data[id] = { folders: [] };
+  curFolderId = null;
+  curConvId   = null;
+  renderFolders();
+  renderChatHeader();
+  renderWelcome();
+  updateModelHint();
+}
+
+// ─── FOLDERS & CONVERSATIONS ──────────────────────────────
+function getFolders()      { return (data[agId()] || {}).folders || []; }
+function getFolder(fid)    { return getFolders().find(f => f.id === fid) || null; }
+function getConv(fid, cid) { const f = getFolder(fid); return f ? (f.convs||[]).find(c => c.id === cid) || null : null; }
+function getCurConv()      { return getConv(curFolderId, curConvId); }
+
+function saveData() {
+  try { localStorage.setItem("data_v5", JSON.stringify(data)); } catch(e) {}
+}
+
+function mkFolder(name) {
+  if (!data[agId()]) data[agId()] = { folders: [] };
+  const f = { id:"f_"+Date.now(), name, open:true, convs:[] };
+  data[agId()].folders.push(f);
+  return f;
+}
+
+function mkConv(folderId, title) {
+  const f = getFolder(folderId);
+  if (!f) return null;
+  const c = { id:"c_"+Date.now(), title: title || "Nouvelle discussion", messages:[] };
+  f.convs.unshift(c);
+  return c;
+}
+
+function delConv(fid, cid) {
+  const f = getFolder(fid);
+  if (!f) return;
+  f.convs = f.convs.filter(c => c.id !== cid);
+  if (curConvId === cid) { curConvId = null; curFolderId = null; }
+  saveData(); renderFolders(); renderChatHeader(); renderWelcome();
+}
+
+function toggleFolder(fid) {
+  const f = getFolder(fid);
+  if (f) { f.open = !f.open; renderFolders(); }
+}
+
+// ─── RENDER SIDEBAR FOLDERS ───────────────────────────────
+function renderFolders() {
+  const c = $("sb-folders");
+  c.innerHTML = "";
+  getFolders().forEach(f => {
+    const wrap = document.createElement("div");
+    wrap.className = "folder-wrap";
+
+    const hd = document.createElement("div");
+    hd.className = "folder-hd";
+    hd.innerHTML = `<span class="folder-arrow ${f.open?"open":""}">▶</span><span>📁</span><span class="folder-name">${esc(f.name)}</span>`;
+    hd.onclick = () => toggleFolder(f.id);
+    wrap.appendChild(hd);
+
+    const convWrap = document.createElement("div");
+    convWrap.className = "folder-convs" + (f.open ? " open" : "");
+    (f.convs || []).forEach(cv => {
+      const item = document.createElement("div");
+      item.className = "conv-item" + (cv.id === curConvId ? " on" : "");
+      item.innerHTML = `<span class="conv-title">${esc(cv.title)}</span>
+        <button class="conv-del" title="Supprimer">×</button>`;
+      item.querySelector(".conv-del").onclick = e => { e.stopPropagation(); delConv(f.id, cv.id); };
+      item.onclick = () => selConv(f.id, cv.id);
+      convWrap.appendChild(item);
+    });
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "sb-add-conv";
+    addBtn.style.paddingLeft = "18px";
+    addBtn.textContent = "＋ Discussion";
+    addBtn.onclick = () => openNewConv(f.id);
+    convWrap.appendChild(addBtn);
+
+    wrap.appendChild(convWrap);
+    c.appendChild(wrap);
+  });
+}
+
+function selConv(fid, cid) {
+  curFolderId = fid; curConvId = cid;
+  renderFolders(); renderChatHeader(); renderMsgs();
+}
+
+// ─── CHAT HEADER ──────────────────────────────────────────
+function renderChatHeader() {
+  const f  = getFolder(curFolderId);
+  const cv = getCurConv();
+  $("ch-folder").textContent = f  ? f.name   : "—";
+  $("ch-conv").textContent   = cv ? cv.title : "Sélectionne une discussion";
+}
+
+// ─── MESSAGES ─────────────────────────────────────────────
+function renderWelcome() {
+  const msgs = $("msgs");
+  msgs.innerHTML = "";
+  const a = curAgent();
+  const f = getFolder(curFolderId);
+  msgs.innerHTML = `<div class="welcome">
+    <div class="w-ico">${a.icon}</div>
+    <div class="w-title">${esc(f ? f.name : a.name)}</div>
+    <div class="w-sub">${esc(a.sys ? getAgentSys(a).slice(0,120)+"…" : "")}</div>
+    <div class="w-badges">
+      <span class="w-badge g">${esc(a.model)}</span>
+      ${a.web ? '<span class="w-badge g">🔍 Web</span>' : ""}
+      <span class="w-badge g">📎 Fichiers</span>
+    </div>
+  </div>`;
+}
+
+function renderMsgs() {
+  const msgs = $("msgs");
+  const cv   = getCurConv();
+  if (!cv || cv.messages.length === 0) { renderWelcome(); return; }
+  msgs.innerHTML = "";
+  cv.messages.forEach(m => appendMsg(m.role, m.content, m.att || null));
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendMsg(role, content, att) {
+  const msgs = $("msgs");
+  msgs.querySelector(".welcome")?.remove();
+
+  let attHtml = "";
+  if (att) {
+    if (att.type === "image") {
+      attHtml = `<div class="att-preview"><img src="data:${esc(att.mimeType)};base64,${att.b64}" alt="image"></div>`;
+    } else if (att.type === "pdf") {
+      attHtml = `<div class="att-preview"><div class="att-pdf-badge">📄 ${esc(att.name)}</div></div>`;
+    } else if (att.type === "text") {
+      const ico = att.fileType === "Word" ? "📝" : att.fileType === "Excel" ? "📊" : "📄";
+      attHtml = `<div class="att-preview"><div class="att-pdf-badge">${ico} ${esc(att.name)} <span style="color:var(--teal);font-size:9px">(texte extrait)</span></div></div>`;
+    }
+  }
+
+  const a = curAgent();
+  const d = document.createElement("div");
+  d.className = "msg " + role;
+  d.innerHTML = `<div class="av">${role === "user" ? "F" : esc(a.icon)}</div>
+    <div class="bub">${attHtml}${fmt(content)}</div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function fmt(t) {
+  if (!t) return "";
+  return esc(t)
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\n\n+/g, "</p><p>")
+    .replace(/\n/g, "<br>")
+    .replace(/^/, "<p>").replace(/$/, "</p>");
+}
+
+// ─── PIÈCES JOINTES ───────────────────────────────────────
+function getFileType(file) {
+  const n = (file.name || "").toLowerCase();
+  if (file.type.startsWith("image/"))                          return "image";
+  if (file.type === "application/pdf" || n.endsWith(".pdf"))   return "pdf";
+  if (n.endsWith(".docx") || n.endsWith(".doc"))               return "word";
+  if (n.endsWith(".xlsx") || n.endsWith(".xls"))               return "excel";
+  if (n.endsWith(".csv"))                                       return "csv";
+  if (n.endsWith(".txt"))                                       return "txt";
+  return "unsupported";
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload  = resolve;
+    s.onerror = () => reject(new Error("Impossible de charger : " + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function extractWordText(file) {
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+  const ab = await file.arrayBuffer();
+  const r  = await mammoth.extractRawText({ arrayBuffer: ab });
+  return r.value;
+}
+
+async function extractExcelText(file) {
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+  const ab = await file.arrayBuffer();
+  const wb = XLSX.read(ab, { type:"array" });
+  return wb.SheetNames.map(name =>
+    `=== ${name} ===\n` + XLSX.utils.sheet_to_csv(wb.Sheets[name])
+  ).join("\n\n");
+}
+
+async function onFile(e) {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+
+  const type    = getFileType(file);
+  const attBar  = $("att-bar");
+  const thumb   = $("att-thumb");
+  const badge   = $("att-type");
+  const attName = $("att-name");
+
+  if (type === "unsupported") {
+    alert("Format non supporté. Formats acceptés : image, PDF, Word (.docx), Excel (.xlsx), CSV, TXT");
+    return;
+  }
+
+  attBar.style.display = "flex";
+  attName.textContent  = "Traitement…";
+  thumb.style.display  = "none";
+  badge.style.display  = "inline";
+  badge.textContent    = type.toUpperCase();
+
+  try {
+    if (type === "image") {
+      const dataUrl = await readAsDataURL(file);
+      const b64 = dataUrl.split(",")[1];
+      pendingAtt = { type:"image", name:file.name, b64, mimeType:file.type };
+      thumb.src = dataUrl; thumb.style.display = "block"; badge.style.display = "none";
+
+    } else if (type === "pdf") {
+      const dataUrl = await readAsDataURL(file);
+      pendingAtt = { type:"pdf", name:file.name, b64:dataUrl.split(",")[1], mimeType:file.type };
+
+    } else if (type === "word") {
+      const text = await extractWordText(file);
+      pendingAtt = { type:"text", name:file.name, extractedText:text, fileType:"Word" };
+      badge.textContent = "WORD";
+
+    } else if (type === "excel") {
+      const text = await extractExcelText(file);
+      pendingAtt = { type:"text", name:file.name, extractedText:text, fileType:"Excel" };
+      badge.textContent = "EXCEL";
+
+    } else { // csv, txt
+      const text = await file.text();
+      pendingAtt = { type:"text", name:file.name, extractedText:text, fileType:type.toUpperCase() };
+      badge.textContent = type.toUpperCase();
+    }
+
+    attName.textContent = file.name;
+    updateModelHint();
+
+  } catch(err) {
+    attBar.style.display = "none";
+    pendingAtt = null;
+    alert("Erreur de lecture : " + err.message);
+  }
+}
+
+function readAsDataURL(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = ev => res(ev.target.result);
+    r.onerror = () => rej(new Error("Lecture fichier impossible"));
+    r.readAsDataURL(file);
+  });
+}
+
+function removeAtt() {
+  pendingAtt = null;
+  $("att-bar").style.display = "none";
+  $("att-thumb").style.display = "none";
+  updateModelHint();
+}
+
+function updateModelHint() {
+  const hint = $("model-hint");
+  const a    = curAgent();
+  if (pendingAtt) {
+    hint.textContent = "gpt-5.4 (vision/analyse fichier)";
+    hint.classList.add("vision");
+  } else {
+    hint.textContent = a.model || "gpt-5-mini";
+    hint.classList.remove("vision");
+  }
+}
+
+// ─── WHISPER ──────────────────────────────────────────────
+async function startRec(e) {
+  if (e) e.preventDefault();
+  if (!apiKey) { alert("Clé API OpenAI requise pour la dictée."); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    audioChunks  = [];
+    mediaRec     = new MediaRecorder(stream, { mimeType:"audio/webm" });
+    mediaRec.ondataavailable = ev => audioChunks.push(ev.data);
+    mediaRec.start();
+    $("mic-btn").classList.add("rec");
+    $("rec-ind").style.display = "flex";
+  } catch(err) { alert("Accès micro refusé : " + err.message); }
+}
+
+async function stopRec(e) {
+  if (e) e.preventDefault();
+  if (!mediaRec || mediaRec.state === "inactive") return;
+  $("mic-btn").classList.remove("rec");
+  $("rec-ind").style.display = "none";
+  mediaRec.stop();
+  mediaRec.stream.getTracks().forEach(t => t.stop());
+  mediaRec.onstop = async () => {
+    const blob = new Blob(audioChunks, { type:"audio/webm" });
+    if (blob.size < 500) return;
+    const inp = $("inp");
+    inp.placeholder = "Transcription…"; inp.disabled = true;
+    try {
+      const fd = new FormData();
+      fd.append("file", blob, "audio.webm");
+      fd.append("model", "whisper-1");
+      fd.append("language", "fr");
+      const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method:"POST", headers:{ "Authorization":"Bearer "+apiKey }, body:fd
+      });
+      const d = await resp.json();
+      if (d.text) { inp.value = (inp.value ? inp.value + " " : "") + d.text; autoH(inp); }
+      else if (d.error) console.warn("Whisper:", d.error.message);
+    } catch(err) { console.warn("Whisper error:", err); }
+    inp.placeholder = "Pose ta question…"; inp.disabled = false; inp.focus();
+  };
+}
+
+// ─── MÉMOIRE ──────────────────────────────────────────────
+function memKey() { return `${agId()}_${curFolderId}_${curConvId}`; }
+function getMemory() { return memory[memKey()] || null; }
+
+async function updateMemory(messages) {
+  if (!apiKey || messages.length < 6) return;
+  try {
+    const prevMemory = getMemory() || "";
+    const recent = messages.slice(-12).map(m => m.role + ": " + m.content).join("\n");
+
+    const prompt = prevMemory
+      ? `Tu as déjà un résumé de cette discussion :\n"${prevMemory}"\n\nVoici les nouveaux échanges depuis ce résumé :\n${recent}\n\nMets à jour le résumé en intégrant les nouvelles informations importantes. Le résumé doit couvrir TOUTE la discussion depuis le début, de manière concise (6-10 phrases max). Réponds uniquement avec le résumé mis à jour.`
+      : `Résume en 4-6 phrases les informations importantes, décisions et contexte clé de cette conversation :\n\n${recent}\n\nRéponds uniquement avec le résumé.`;
+
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+apiKey },
+      body: JSON.stringify({
+        model:"gpt-5-mini", max_completion_tokens:500,
+        messages:[{ role:"user", content: prompt }]
+      })
+    });
+    const d = await resp.json();
+    if (d.choices?.[0]?.message?.content) {
+      memory[memKey()] = d.choices[0].message.content;
+      localStorage.setItem("mem_v2", JSON.stringify(memory));
+      if (notionKey && notionDb && VERCEL_URL) syncNotion();
+    }
+  } catch(e) { console.warn("Memory update:", e); }
+}
+
+async function syncNotion() {
+  try {
+    const f  = getFolder(curFolderId);
+    const cv = getCurConv();
+    await fetch(`${VERCEL_URL}/api/notion?path=pages`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        parent: { database_id: notionDb },
+        properties: {
+          Name:    { title:     [{ text:{ content:(f?.name||"")+" › "+(cv?.title||"") }}] },
+          Agent:   { rich_text: [{ text:{ content: curAgent().name }}] },
+          Memory:  { rich_text: [{ text:{ content: memory[memKey()]||"" }}] },
+          Updated: { date:      { start: new Date().toISOString() }}
+        }
+      })
+    });
+  } catch(e) { console.warn("Notion sync:", e); }
+}
+
+// ─── ENVOI MESSAGE ────────────────────────────────────────
+async function sendMsg() {
+  const inp = $("inp");
+  const txt = inp.value.trim();
+  const a   = curAgent();  // déclaré en premier — utilisé dans tous les checks
+  if ((!txt && !pendingAtt) || busy) return;
+  if (!apiKey && a.id !== "codeur") { alert("Ajoute ta clé API OpenAI dans le bandeau orange."); return; }
+  if (a.id === "codeur" && !mistralKey) { alert("Ajoute ta clé API Mistral dans le bandeau orange (agent Codeur Expert)."); return; }
+  if (!curConvId) { alert("Sélectionne ou crée une discussion dans la sidebar."); return; }
+
+  const cv = getCurConv();
+  if (!cv) { alert("Discussion introuvable. Recharge la page."); return; }
+
+  inp.value = ""; autoH(inp);
+  busy = true;
+  $("send-btn").disabled = true;
+
+  const att = pendingAtt;
+  if (att) removeAtt();
+
+  const isMistral = (a.id === "codeur");
+  const model     = isMistral
+    ? "codestral-latest"                          // Mistral Codestral — meilleur modèle code
+    : (att ? "gpt-5.4" : (a.model || "gpt-5-mini"));
+
+  // Sauvegarder message user
+  const userMsg = { role:"user", content: txt || (att ? "[Fichier joint]" : ""), att: att || null };
+  cv.messages.push(userMsg);
+  if (cv.title === "Nouvelle discussion" && txt)
+    cv.title = txt.slice(0, 44) + (txt.length > 44 ? "…" : "");
+  appendMsg("user", userMsg.content, att);
+  saveData(); renderFolders(); renderChatHeader();
+
+  // Indicateur de frappe
+  const typ = document.createElement("div");
+  typ.className = "msg assistant";
+  typ.innerHTML = `<div class="av">${esc(a.icon)}</div><div class="bub"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  $("msgs").appendChild(typ);
+  $("msgs").scrollTop = 999999;
+
+  try {
+    const mem = getMemory();
+    const sys = getAgentSys(a) + (mem ? `\n\n[Contexte mémoire de cette discussion :]\n${mem}` : "");
+
+    const history = cv.messages.slice(-10).map(m => {
+      if (m.att?.type === "image") {
+        return { role: m.role, content: [
+          { type:"text", text: m.content || "Analyse cette image." },
+          { type:"image_url", image_url:{ url:`data:${m.att.mimeType};base64,${m.att.b64}` }}
+        ]};
+      }
+      if (m.att?.type === "pdf") {
+        return { role: m.role, content: [
+          { type:"text", text: m.content || "Analyse ce PDF." },
+          { type:"text", text: `[PDF joint : ${m.att.name}]` }
+        ]};
+      }
+      if (m.att?.type === "text") {
+        const MAX = 8000;
+        const extracted = (m.att.extractedText || "").slice(0, MAX);
+        const suffix    = (m.att.extractedText||"").length > MAX ? "\n[…tronqué]" : "";
+        return { role: m.role, content:
+          `${m.content || "Analyse ce fichier."}\n\n[Fichier ${m.att.fileType} "${m.att.name}" :]\n${extracted}${suffix}`
+        };
+      }
+      return { role: m.role, content: m.content || "" };
+    });
+
+    // ── Choix endpoint & auth selon l'agent ──────────────
+    const apiUrl  = isMistral
+      ? "https://api.mistral.ai/v1/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
+    const authKey = isMistral ? mistralKey : apiKey;
+
+    const resp = await fetch(apiUrl, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+authKey },
+      body: JSON.stringify({
+        model,
+        messages: [{ role:"system", content:sys }, ...history],
+        ...(isMistral ? { max_tokens: 4096 } : { max_completion_tokens: 1500 }),
+        ...(isMistral ? { temperature: 0.2 } : {}),  // temperature non supporté par GPT-5
+      })
+    });
+
+    const d = await resp.json();
+    typ.remove();
+
+    if (d.error) throw new Error(d.error.message);
+
+    const reply = d.choices?.[0]?.message?.content || "(Réponse vide)";
+    cv.messages.push({ role:"assistant", content:reply });
+    appendMsg("assistant", reply);
+    saveData();
+
+    if (cv.messages.length % 10 === 0) updateMemory(cv.messages);
+
+  } catch(err) {
+    typ.remove();
+    appendMsg("assistant", "⚠ Erreur : " + err.message);
+  }
+
+  busy = false;
+  $("send-btn").disabled = false;
+  updateModelHint();
+  inp.focus();
+}
+
+// ─── DÉTECTION NOUVEAUX MODÈLES (OpenAI + Mistral) ────────
+
+// Modèles connus au moment de l'écriture du code — tout ce qui n'est pas dans cette liste
+// et qui apparaît dans l'API sera signalé comme "nouveau"
+const KNOWN_OPENAI = new Set([
+  "gpt-4o","gpt-4o-mini","gpt-4o-mini-2024-07-18","gpt-4o-2024-05-13","gpt-4o-2024-08-06",
+  "gpt-4-turbo","gpt-4-turbo-2024-04-09","gpt-4-turbo-preview",
+  "gpt-4","gpt-4-0613","gpt-4-0125-preview","gpt-4-1106-preview",
+  "gpt-3.5-turbo","gpt-3.5-turbo-0125","gpt-3.5-turbo-1106",
+  "o1","o1-mini","o1-preview","o3","o3-mini",
+  "gpt-5","gpt-5-mini"
+]);
+
+const KNOWN_MISTRAL = new Set([
+  "mistral-tiny","mistral-small","mistral-small-latest",
+  "mistral-medium","mistral-medium-latest",
+  "mistral-large","mistral-large-latest","mistral-large-2411",
+  "mistral-7b-instruct","mixtral-8x7b-instruct","mixtral-8x22b-instruct",
+  "codestral-latest","codestral-2405",
+  "mistral-embed","mistral-moderation-latest",
+  "open-mistral-7b","open-mixtral-8x7b","open-mixtral-8x22b",
+  "open-codestral-mamba","pixtral-12b-2409","pixtral-large-latest"
+]);
+
+async function checkNewModels() {
+  const results = [];
+
+  // ── OpenAI ──────────────────────────────────────────────
+  if (apiKey) {
+    try {
+      const resp = await fetch("https://api.openai.com/v1/models", {
+        headers:{ "Authorization":"Bearer "+apiKey }
+      });
+      const d = await resp.json();
+      if (d.data) {
+        const chatModels = d.data
+          .filter(m =>
+            (m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3") || m.id.startsWith("o4")) &&
+            !m.id.includes("instruct") && !m.id.includes("audio") &&
+            !m.id.includes("realtime") && !m.id.includes("whisper") &&
+            !m.id.includes("embedding") && !m.id.includes("tts") && !m.id.includes("dall-e")
+          )
+          .map(m => m.id);
+        const newOnes = chatModels.filter(m => !KNOWN_OPENAI.has(m) && !localStorage.getItem("seen_mdl_oai_"+m));
+        if (newOnes.length > 0) {
+          newOnes.forEach(m => { KNOWN_OPENAI.add(m); localStorage.setItem("seen_mdl_oai_"+m,"1"); });
+          results.push(`🟢 OpenAI : ${newOnes.join(", ")}`);
+        }
+      }
+    } catch(e) { console.warn("OpenAI model check:", e); }
+  }
+
+  // ── Mistral ─────────────────────────────────────────────
+  if (mistralKey) {
+    try {
+      const resp = await fetch("https://api.mistral.ai/v1/models", {
+        headers:{ "Authorization":"Bearer "+mistralKey }
+      });
+      const d = await resp.json();
+      if (d.data) {
+        const mistralModels = d.data
+          .filter(m =>
+            !m.id.includes("embed") && !m.id.includes("moderation") &&
+            !m.id.includes("mamba") && m.object === "model"
+          )
+          .map(m => m.id);
+        const newOnes = mistralModels.filter(m => !KNOWN_MISTRAL.has(m) && !localStorage.getItem("seen_mdl_mst_"+m));
+        if (newOnes.length > 0) {
+          newOnes.forEach(m => { KNOWN_MISTRAL.add(m); localStorage.setItem("seen_mdl_mst_"+m,"1"); });
+          results.push(`🔥 Mistral : ${newOnes.join(", ")}`);
+        }
+      }
+    } catch(e) { console.warn("Mistral model check:", e); }
+  }
+
+  // ── Notification si nouveautés ───────────────────────────
+  if (results.length > 0) {
+    showNotif(
+      `✦ Nouveaux modèles disponibles !\n${results.join("\n")}`,
+      14000
+    );
+  }
+}
+
+// Vérifie les deux APIs dès que les deux clés sont disponibles
+function triggerModelCheck() {
+  if (apiKey || mistralKey) setTimeout(checkNewModels, 2500);
+}
+
+function showNotif(msg, duration = 5000) {
+  const n = document.createElement("div");
+  n.className = "notif";
+  n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), duration);
+}
+
+// ─── ÉDITION DE PROMPT ────────────────────────────────────
+// Stocke les prompts built-in personnalisés (clé = agent id)
+let customPrompts = {};
+try { const s = localStorage.getItem("custom_prompts_v1"); if(s) customPrompts = JSON.parse(s); } catch(e){}
+
+// Retourne le prompt actif d'un agent (modifié ou original)
+function getAgentSys(a) {
+  return customPrompts[a.id] !== undefined ? customPrompts[a.id] : a.sys;
+}
+
+let promptEditTarget = null; // { type:'builtin'|'custom', ref: index|id }
+
+function openPromptEdit(type, ref) {
+  let a;
+  if (type === 'builtin') {
+    a = BUILTIN[ref];
+  } else {
+    a = customAgents.find(x => x.id === ref);
+  }
+  if (!a) return;
+
+  promptEditTarget = { type, ref };
+
+  $("prompt-modal-icon").textContent  = a.icon || "🤖";
+  $("prompt-modal-title").textContent = a.name;
+  $("prompt-modal-model").textContent = a.model || "gpt-5-mini";
+
+  const currentSys = getAgentSys(a);
+  const area = $("prompt-edit-area");
+  area.value = currentSys;
+  area.style.borderColor = "";
+  updatePromptCount();
+
+  // Afficher ou masquer le bouton Réinitialiser selon qu'il y a eu une modif
+  const hasCustom = customPrompts[a.id] !== undefined;
+  $("modal-prompt").querySelector("button[onclick='resetBuiltinPrompt()']").style.display =
+    hasCustom ? "inline-flex" : "none";
+
+  openModal("modal-prompt");
+  setTimeout(() => area.focus(), 120);
+}
+
+function updatePromptCount() {
+  const len = ($("prompt-edit-area").value || "").length;
+  $("prompt-char-count").textContent = len.toLocaleString("fr-FR") + " caractères";
+}
+
+$("prompt-edit-area") && $("prompt-edit-area").addEventListener("input", updatePromptCount);
+
+function savePromptEdit() {
+  if (!promptEditTarget) return;
+  const newSys = $("prompt-edit-area").value.trim();
+  if (!newSys) { alert("Le prompt ne peut pas être vide."); return; }
+
+  const { type, ref } = promptEditTarget;
+
+  if (type === "builtin") {
+    const a = BUILTIN[ref];
+    customPrompts[a.id] = newSys;
+    localStorage.setItem("custom_prompts_v1", JSON.stringify(customPrompts));
+    showNotif(`✓ Prompt "${a.name}" mis à jour — actif immédiatement`);
+  } else {
+    const idx = customAgents.findIndex(x => x.id === ref);
+    if (idx >= 0) {
+      customAgents[idx].sys = newSys;
+      localStorage.setItem("custom_agents_v1", JSON.stringify(customAgents));
+      showNotif(`✓ Prompt "${customAgents[idx].name}" mis à jour`);
+    }
+  }
+  closeAllModals();
+}
+
+function resetBuiltinPrompt() {
+  if (!promptEditTarget || promptEditTarget.type !== "builtin") return;
+  const a = BUILTIN[promptEditTarget.ref];
+  if (!confirm(`Réinitialiser le prompt de "${a.name}" à sa version d'origine ?`)) return;
+  delete customPrompts[a.id];
+  localStorage.setItem("custom_prompts_v1", JSON.stringify(customPrompts));
+  $("prompt-edit-area").value = a.sys;
+  $("prompt-edit-area").style.borderColor = "";
+  $("modal-prompt").querySelector("button[onclick='resetBuiltinPrompt()']").style.display = "none";
+  updatePromptCount();
+  showNotif(`↺ Prompt "${a.name}" réinitialisé`);
+  closeAllModals();
+}
+
+// ─── AGENTS PERSONNALISÉS ─────────────────────────────────
+const COMPLEX_KW = ["analyse","stratégie","stratégique","juridique","comptabilité","fiscal","médical","trading","marché","finance","code","programmation","données","recherche","scientifique","technique"];
+const WEB_KW     = ["actualité","temps réel","récent","aujourd'hui","internet","recherche en ligne"];
+
+function autoSelectModel(prompt) {
+  const p = (prompt || "").toLowerCase();
+  const isComplex = COMPLEX_KW.some(k => p.includes(k)) || p.length > 500;
+  const needsWeb  = WEB_KW.some(k => p.includes(k));
+  return isComplex
+    ? { model:"gpt-5.4",   reason:"Prompt complexe → gpt-5.4",   web:needsWeb }
+    : { model:"gpt-5-mini", reason:"Prompt standard → gpt-5-mini", web:needsWeb };
+}
+
+function previewModel() {
+  const sel = autoSelectModel($("agent-prompt-inp").value);
+  $("model-preview").textContent =
+    $("agent-prompt-inp").value.length > 10
+      ? "Modèle : " + sel.model + " · " + sel.reason
+      : "";
+}
+
+function openNewAgent() {
+  editingAgId = null;
+  $("modal-agent-title").textContent = "Nouvel agent";
+  $("agent-icon-inp").value   = "";
+  $("agent-name-inp").value   = "";
+  $("agent-prompt-inp").value = "";
+  $("model-preview").textContent = "";
+  hideEl("agent-del-btn");
+  openModal("modal-agent");
+  setTimeout(() => $("agent-name-inp").focus(), 120);
+}
+
+function openEditAgent(id) {
+  const a = customAgents.find(x => x.id === id);
+  if (!a) return;
+  editingAgId = id;
+  $("modal-agent-title").textContent = "Modifier l'agent";
+  $("agent-icon-inp").value   = a.icon   || "";
+  $("agent-name-inp").value   = a.name   || "";
+  $("agent-prompt-inp").value = a.sys    || "";
+  $("model-preview").textContent = "Modèle actuel : " + (a.model || "gpt-5-mini");
+  showEl("agent-del-btn");
+  openModal("modal-agent");
+}
+
+function saveCustomAgent() {
+  const icon   = $("agent-icon-inp").value.trim()   || "🤖";
+  const name   = $("agent-name-inp").value.trim();
+  const prompt = $("agent-prompt-inp").value.trim();
+  if (!name)   { alert("Donne un nom à l'agent."); return; }
+  if (!prompt) { alert("Le prompt ne peut pas être vide."); return; }
+
+  const sel = autoSelectModel(prompt);
+
+  if (editingAgId) {
+    const idx = customAgents.findIndex(x => x.id === editingAgId);
+    if (idx >= 0) customAgents[idx] = { ...customAgents[idx], icon, name, sys:prompt, model:sel.model, web:sel.web };
+  } else {
+    customAgents.push({ id:"ca_"+Date.now(), icon, name, sys:prompt, model:sel.model, web:sel.web });
+  }
+
+  localStorage.setItem("custom_agents_v1", JSON.stringify(customAgents));
+  renderCustom();
+  closeAllModals();
+  showNotif(`✓ Agent "${name}" enregistré — modèle : ${sel.model}`);
+}
+
+function deleteCustomAgent() {
+  if (!editingAgId) return;
+  const a = customAgents.find(x => x.id === editingAgId);
+  if (!a || !confirm(`Supprimer l'agent "${a.name}" ?`)) return;
+  customAgents = customAgents.filter(x => x.id !== editingAgId);
+  if (curAgIdx >= BUILTIN.length) { curAgIdx = 0; }
+  localStorage.setItem("custom_agents_v1", JSON.stringify(customAgents));
+  renderCustom();
+  closeAllModals();
+  selAgent(0);
+}
+
+// ─── MODALS ───────────────────────────────────────────────
+function openModal(id) {
+  closeAllModals();
+  const el = $(id);
+  if (el) el.style.display = "flex";
+}
+
+function closeAllModals() {
+  document.querySelectorAll(".modal-ov").forEach(m => m.style.display = "none");
+}
+
+function confirmNewFolder() {
+  const name = $("folder-name-inp").value.trim();
+  if (!name) return;
+  const f = mkFolder(name);
+  saveData(); renderFolders(); closeAllModals();
+  openNewConv(f.id);
+}
+
+function openNewConv(fid) {
+  pendingFolder = fid;
+  $("conv-name-inp").value = "";
+  openModal("modal-conv");
+  setTimeout(() => $("conv-name-inp").focus(), 120);
+}
+
+function newConvInCurrent() {
+  if (!curFolderId) { alert("Crée d'abord un dossier."); return; }
+  openNewConv(curFolderId);
+}
+
+function confirmNewConv() {
+  const title = $("conv-name-inp").value.trim() || "Nouvelle discussion";
+  const fid   = pendingFolder || curFolderId;
+  if (!fid) { closeAllModals(); return; }
+  const cv = mkConv(fid, title);
+  if (cv) { curFolderId = fid; curConvId = cv.id; }
+  saveData(); renderFolders(); renderChatHeader(); renderMsgs(); closeAllModals();
+}
+
+// Fermer modal en cliquant sur l'overlay
+document.querySelectorAll(".modal-ov").forEach(ov => {
+  ov.addEventListener("click", e => { if (e.target === ov) closeAllModals(); });
+});
+
+// Enter dans les champs de modal
+$("folder-name-inp").addEventListener("keydown", e => { if (e.key === "Enter") confirmNewFolder(); });
+$("conv-name-inp")  .addEventListener("keydown", e => { if (e.key === "Enter") confirmNewConv(); });
+
+// ─── UI HELPERS ───────────────────────────────────────────
+function onKey(e) {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+function autoH(el) {
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 120) + "px";
+}
+
+// ─── DÉMARRAGE ────────────────────────────────────────────
+initLoginScreen();
+</script>
+</body>
+</html>
