@@ -1710,7 +1710,7 @@ async function sendMsg() {
         model,
         messages: [{ role:"system", content:sys }, ...history],
         max_completion_tokens: isMistral ? 4096 : 1500,   // Codestral supporte des réponses plus longues
-        temperature: isMistral ? 0.2 : 1   // température basse pour le code = moins d'erreurs
+        temperature: isMistral ? 0.2 : 1,
       })
     });
 
